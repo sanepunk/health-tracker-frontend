@@ -8,7 +8,7 @@ const Login = () => {
   const [formData, setFormData] = useState({
     username: '',
     password: '',
-    rememberMe: false
+    rememberMe: true  // Always true now
   })
   const [showPassword, setShowPassword] = useState(false)
   const [errors, setErrors] = useState({})
@@ -58,7 +58,7 @@ const Login = () => {
     setIsSubmitting(true)
 
     try {
-      // Use the new API-based login
+      // Use the new API-based login with remember me always true
       const result = await login({
         username: formData.username.trim(),
         password: formData.password
@@ -137,18 +137,6 @@ const Login = () => {
           </div>
 
           <div className="form-options">
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                name="rememberMe"
-                checked={formData.rememberMe}
-                onChange={handleInputChange}
-                className="checkbox-input"
-              />
-              <span className="checkbox-custom"></span>
-              Remember me
-            </label>
-            
             <Link to="/password-recovery" className="forgot-password">
               Forgot password?
             </Link>

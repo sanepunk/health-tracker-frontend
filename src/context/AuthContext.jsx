@@ -23,18 +23,30 @@ export const AuthProvider = ({ children }) => {
 
   const checkStoredAuth = async () => {
     try {
-      const rememberMe = localStorage.getItem('rememberMe') === 'true'
-      
-      // Check localStorage first (for persistent login), then sessionStorage (for session-only)
+      // Always treat as persistent now - check localStorage first, then sessionStorage for backward compatibility
       let accessToken = localStorage.getItem('accessToken')
       let refreshToken = localStorage.getItem('refreshToken')
       let storedUser = localStorage.getItem('user')
       
-      // If not in localStorage, check sessionStorage
+      // If not in localStorage, check sessionStorage for backward compatibility
       if (!accessToken) {
         accessToken = sessionStorage.getItem('accessToken')
         refreshToken = sessionStorage.getItem('refreshToken')
         storedUser = sessionStorage.getItem('user')
+        
+        // If found in sessionStorage, migrate to localStorage
+        if (accessToken && refreshToken) {
+          localStorage.setItem('accessToken', accessToken)
+          localStorage.setItem('refreshToken', refreshToken)
+          localStorage.setItem('rememberMe', 'true')
+          if (storedUser) {
+            localStorage.setItem('user', storedUser)
+          }
+          // Clear from sessionStorage
+          sessionStorage.removeItem('accessToken')
+          sessionStorage.removeItem('refreshToken')
+          sessionStorage.removeItem('user')
+        }
       }
       
       // If no tokens found anywhere, exit
@@ -49,12 +61,8 @@ export const AuthProvider = ({ children }) => {
         setIsAuthenticated(true)
         
         // Update stored user data
-        if (rememberMe) {
-          localStorage.setItem('user', JSON.stringify(userData))
-        } else {
-          sessionStorage.setItem('user', JSON.stringify(userData))
-        }
-      } catch (authError) {
+        localStorage.setItem('user', JSON.stringify(userData))
+      } catch (userError) {
         console.log('Access token invalid, attempting refresh...')
         
         // If the access token is invalid, try to refresh
@@ -62,29 +70,21 @@ export const AuthProvider = ({ children }) => {
           try {
             const refreshResponse = await authAPI.refreshToken(refreshToken)
             
-            // Store new token in the same location as the original tokens
-            if (rememberMe) {
-              localStorage.setItem('accessToken', refreshResponse.access_token)
-            } else {
-              sessionStorage.setItem('accessToken', refreshResponse.access_token)
-            }
+            // Store new token in localStorage
+            localStorage.setItem('accessToken', refreshResponse.access_token)
             
             // Try getting user data again with new token
             const userData = await authAPI.getCurrentUser()
             setUser(userData)
             setIsAuthenticated(true)
             
-            // Update stored user data in the same location
-            if (rememberMe) {
-              localStorage.setItem('user', JSON.stringify(userData))
-            } else {
-              sessionStorage.setItem('user', JSON.stringify(userData))
-            }
+            // Update stored user data
+            localStorage.setItem('user', JSON.stringify(userData))
           } catch (refreshError) {
             console.log('Token refresh failed, checking stored user data...')
             
-            // If refresh fails but we have stored user data and rememberMe is true, use it
-            if (storedUser && rememberMe) {
+            // If refresh fails but we have stored user data, use it
+            if (storedUser) {
               try {
                 const parsedUser = JSON.parse(storedUser)
                 setUser(parsedUser)
@@ -123,7 +123,7 @@ export const AuthProvider = ({ children }) => {
     setIsAuthenticated(false)
   }
 
-  const login = async (credentials, rememberMe = false) => {
+  const login = async (credentials, rememberMe = true) => {
     try {
       // Call the real API
       const response = await authAPI.login({
@@ -131,20 +131,16 @@ export const AuthProvider = ({ children }) => {
         password: credentials.password || credentials
       })
       
-      // Store tokens (they come nested in response.tokens)
-      if (rememberMe) {
-        // For persistent login, store in localStorage
-        localStorage.setItem('accessToken', response.tokens.access_token)
-        localStorage.setItem('refreshToken', response.tokens.refresh_token)
-        localStorage.setItem('user', JSON.stringify(response.user))
-        localStorage.setItem('rememberMe', 'true')
-      } else {
-        // For session-only login, store in sessionStorage
-        sessionStorage.setItem('accessToken', response.tokens.access_token)
-        sessionStorage.setItem('refreshToken', response.tokens.refresh_token)
-        sessionStorage.setItem('user', JSON.stringify(response.user))
-        localStorage.setItem('rememberMe', 'false')
-      }
+      // Always store in localStorage now (persistent login)
+      localStorage.setItem('accessToken', response.tokens.access_token)
+      localStorage.setItem('refreshToken', response.tokens.refresh_token)
+      localStorage.setItem('user', JSON.stringify(response.user))
+      localStorage.setItem('rememberMe', 'true')
+      
+      // Clear any old sessionStorage data
+      sessionStorage.removeItem('accessToken')
+      sessionStorage.removeItem('refreshToken')
+      sessionStorage.removeItem('user')
       
       // Use user data from login response instead of making another API call
       setUser(response.user)
@@ -196,13 +192,8 @@ export const AuthProvider = ({ children }) => {
       const userData = await authAPI.getCurrentUser()
       setUser(userData)
       
-      // Update stored user data in appropriate storage
-      const rememberMe = localStorage.getItem('rememberMe') === 'true'
-      if (rememberMe) {
-        localStorage.setItem('user', JSON.stringify(userData))
-      } else {
-        sessionStorage.setItem('user', JSON.stringify(userData))
-      }
+      // Update stored user data in localStorage
+      localStorage.setItem('user', JSON.stringify(userData))
       
       return { success: true }
     } catch (error) {

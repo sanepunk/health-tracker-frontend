@@ -204,7 +204,7 @@ const Registration = () => {
       const result = await login({
         username: formData.username.trim(),
         password: formData.password
-      }, false) // Don't remember me for auto-login after registration
+      }, true) // Always remember me now
       
       if (result.success) {
         navigate('/dashboard')

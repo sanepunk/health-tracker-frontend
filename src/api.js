@@ -41,12 +41,10 @@ api.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        // Check localStorage first, then sessionStorage for refresh token
+        // Check localStorage first, then sessionStorage for backward compatibility
         let refreshToken = localStorage.getItem('refreshToken');
-        let isRememberMe = true;
         if (!refreshToken) {
           refreshToken = sessionStorage.getItem('refreshToken');
-          isRememberMe = false;
         }
         
         if (refreshToken) {
@@ -56,12 +54,8 @@ api.interceptors.response.use(
 
           const { access_token } = response.data;
           
-          // Store new token in the same location as the original
-          if (isRememberMe) {
-            localStorage.setItem('accessToken', access_token);
-          } else {
-            sessionStorage.setItem('accessToken', access_token);
-          }
+          // Always store new token in localStorage now
+          localStorage.setItem('accessToken', access_token);
 
           // Retry original request with new token
           originalRequest.headers.Authorization = `Bearer ${access_token}`;
