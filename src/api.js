@@ -7,7 +7,7 @@ const API_PREFIX = '/api/v1';
 // Create axios instance with default configuration
 const api = axios.create({
   baseURL: `${API_BASE_URL}${API_PREFIX}`,
-  timeout: 10000,
+  timeout: 59900,
   headers: {
     'Content-Type': 'application/json',
   },
